@@ -177,27 +177,28 @@ def build_algorithms_matrix(df):
 
 # Configured sidebar controls to preserve API limits dynamically
 st.sidebar.header("⚙️ Workspace Controls")
+# UPDATED: Changed slider constraints to float values to allow a fast 0.5-second update cycle
 refresh_rate = st.sidebar.slider(
     label="API Refresh Interval (Seconds)",
-    min_value=10,
-    max_value=120,
-    value=15,
-    step=5,
-    help="Higher values prevent Yahoo Finance from throttling your connection IP."
+    min_value=0.5,
+    max_value=120.0,
+    value=0.5,
+    step=0.5,
+    help="Lower values update faster. If Yahoo Finance throttles your IP, the app transitions to simulator mode automatically."
 )
 
-# ARCHITECTURAL FIX: Auto-Refresh Toggle (Disabled by default to stop thread leaks from bots/idle visits)
+# ARCHITECTURAL FIX: Auto-Refresh Toggle (Enabled by default now for instant 0.5-second updates)
 enable_auto_refresh = st.sidebar.checkbox(
     label="🔄 Enable Live Auto-Refresh",
-    value=False,
-    help="Automatically reruns script every N seconds. Keep off unless active monitoring is required to preserve container memory."
+    value=True,
+    help="Automatically reruns script every N seconds."
 )
 
 # Informational helper guide
 st.sidebar.markdown("""
 ---
 ### 💡 Best Practice
-Keep **Auto-Refresh** turned **OFF** when not actively trading. Use the high-contrast **`Sync Live Feed`** button to update on-demand. This completely avoids rate-limiting and keeps the deployment stable.
+Fast 0.5-second updates will quickly trigger Yahoo Finance rate limiting. When throttled, the dashboard will seamlessly switch to simulated ticks so your indicators continue running smoothly in real-time.
 """)
 
 # Master visual layout headers
