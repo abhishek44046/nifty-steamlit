@@ -25,9 +25,10 @@ def get_yesterday_close(ticker_symbol="^NSEI"):
     """
     Retrieves the previous close price safely using historical daily points.
     Avoids yfinance `.info` dict lookups to prevent server rate-limiting timeouts.
+    Explicitly uses threads=False to prevent OS thread exhaustion on Streamlit Cloud.
     """
     try:
-        df = yf.download(ticker_symbol, period="5d", interval="1d", progress=False)
+        df = yf.download(ticker_symbol, period="5d", interval="1d", progress=False, threads=False)
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         if len(df) >= 2:
@@ -42,9 +43,10 @@ def fetch_nifty_data():
     """
     Pulls 5 days of 1-minute data (the maximum stable limit allowed by Yahoo).
     If connection fails or rate-limits, activates offline simulator mode automatically.
+    Explicitly uses threads=False to prevent OS thread exhaustion on Streamlit Cloud.
     """
     try:
-        data = yf.download("^NSEI", period="5d", interval="1m", progress=False)
+        data = yf.download("^NSEI", period="5d", interval="1m", progress=False, threads=False)
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
         if data.empty or len(data) < 10:
@@ -73,6 +75,10 @@ def fetch_nifty_data():
 # OPTIMIZATION: Cached for 60 seconds. Prevents 4 separate requests from launching on every quick-loop iteration.
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_major_indices():
+    """
+    Pulls major market benchmarks using a completely sequential, single-threaded pipeline
+    to guarantee absolute container stability.
+    """
     indices = {
         "Nifty 50": "^NSEI",
         "Nifty Bank": "^NSEBANK",
@@ -82,7 +88,7 @@ def fetch_major_indices():
     watchlist = []
     for name, ticker in indices.items():
         try:
-            ticker_df = yf.download(ticker, period="1d", interval="5m", progress=False)
+            ticker_df = yf.download(ticker, period="1d", interval="5m", progress=False, threads=False)
             if isinstance(ticker_df.columns, pd.MultiIndex):
                 ticker_df.columns = ticker_df.columns.get_level_values(0)
             if not ticker_df.empty:
