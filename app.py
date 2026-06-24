@@ -19,7 +19,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=600)
+# FIXED: Disable show_spinner to prevent Python 3.14 thread spawning errors on Streamlit Cloud
+@st.cache_data(ttl=600, show_spinner=False)
 def get_yesterday_close(ticker_symbol="^NSEI"):
     """
     Retrieves the previous close price safely using historical daily points.
@@ -196,7 +197,6 @@ while True:
             with top_col2:
                 st.markdown("### 📊 Major Indian Indices Live")
                 indices_df = fetch_major_indices()
-                # FIXED: replaced use_container_width with new stretch configuration
                 st.dataframe(indices_df, width="stretch", hide_index=True)
             
             st.markdown("---")
