@@ -180,11 +180,25 @@ refresh_rate = st.sidebar.slider(
     help="Higher values prevent Yahoo Finance from throttling your connection IP."
 )
 
+# ARCHITECTURAL FIX: Auto-Refresh Toggle (Disabled by default to stop thread leaks from bots/idle visits)
+enable_auto_refresh = st.sidebar.checkbox(
+    label="🔄 Enable Live Auto-Refresh",
+    value=False,
+    help="Automatically reruns script every N seconds. Keep off unless active monitoring is required to preserve container memory."
+)
+
+# Informational helper guide
+st.sidebar.markdown("""
+---
+### 💡 Best Practice
+Keep **Auto-Refresh** turned **OFF** when not actively trading. Use the high-contrast **`Sync Live Feed`** button to update on-demand. This completely avoids rate-limiting and keeps the deployment stable.
+""")
+
 # Master visual layout headers
 st.title("📈 Nifty 50 Multi-Algo Monitor & Trade Signal")
 st.caption("⚠️ *Data source: Yahoo Finance (Subject to a 15-minute feed delay for NSE indices)*")
 
-# Execute single-run data lifecycle (Eliminates the 'while True' infinite loop thread leak)
+# Execute single-run data lifecycle
 df = fetch_nifty_data()
 prev_day_close = get_yesterday_close("^NSEI")
 
@@ -204,6 +218,10 @@ if not df.empty and len(df) >= 50 and prev_day_close:
             value=f"{current_price:.2f}", 
             delta=f"{total_day_change:+.2f} ({pct_day_change:+.2f}%)"
         )
+        # Added beautiful manual sync command (Clears local caches before re-triggering)
+        if st.button("🔄 Sync Live Feed", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
         
     with top_col2:
         st.markdown("### 📊 Major Indian Indices Live")
@@ -259,7 +277,7 @@ if not df.empty and len(df) >= 50 and prev_day_close:
                 <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bullish_count} of {total_algos} Algos</div>
             </div>
         """, unsafe_allow_html=True)
-        
+                
     with pct_col2:
         st.markdown(f"""
             <div class="metric-card" style="border-top: 4px solid #64748b;">
@@ -268,7 +286,7 @@ if not df.empty and len(df) >= 50 and prev_day_close:
                 <div style="font-size: 11px; color: #475569; margin-top: 4px;">{neutral_count} of {total_algos} Algos</div>
             </div>
         """, unsafe_allow_html=True)
-        
+                
     with pct_col3:
         st.markdown(f"""
             <div class="metric-card" style="border-top: 4px solid #ef4444;">
@@ -277,7 +295,7 @@ if not df.empty and len(df) >= 50 and prev_day_close:
                 <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bearish_count} of {total_algos} Algos</div>
             </div>
         """, unsafe_allow_html=True)
-    
+            
     st.markdown("---")
     st.markdown("### 🛠️ Individual Technical Engine Breakdowns")
     
@@ -288,10 +306,13 @@ if not df.empty and len(df) >= 50 and prev_day_close:
         report_data.append({"Algorithm Engine": algo, "Market Signal Direction": status})
     
     st.table(pd.DataFrame(report_data))
-    
+            
 else:
     st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
 
-# SAFE POLLING SLEEP: Pauses the single execution thread, then triggers a clean, safe rerun lifecycle.
-time.sleep(refresh_rate)
-st.rerun()
+# SAFE COOPERATIVE SLEEP & RERUN LIFECYCLE
+if enable_auto_refresh:
+    # Split sleep time into 1-second ticks so the thread can be killed cooperatively by the OS
+    for _ in range(refresh_rate):
+        time.sleep(1)
+    st.rerun()
