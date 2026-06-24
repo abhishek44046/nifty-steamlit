@@ -251,4 +251,4 @@ while True:
         else:
             st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
             
-    time.sleep(1)
+    time.sleep(0.5)
