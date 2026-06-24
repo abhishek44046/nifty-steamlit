@@ -19,8 +19,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# OPTIMIZATION: Previous day close changes 0 times during live market. Cached for 30 mins to conserve request quota.
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=600)
 def get_yesterday_close(ticker_symbol="^NSEI"):
     """
     Retrieves the previous close price safely using historical daily points.
@@ -70,8 +69,6 @@ def fetch_nifty_data():
         }, index=timestamps)
         return sim_df
 
-# OPTIMIZATION: Cached for 60 seconds. Prevents 4 separate requests from launching on every quick-loop iteration.
-@st.cache_data(ttl=60, show_spinner=False)
 def fetch_major_indices():
     indices = {
         "Nifty 50": "^NSEI",
@@ -169,17 +166,6 @@ def build_algorithms_matrix(df):
     
     return signals
 
-# Configured sidebar controls to preserve API limits dynamically
-st.sidebar.header("⚙️ Workspace Controls")
-refresh_rate = st.sidebar.slider(
-    label="API Refresh Interval (Seconds)",
-    min_value=10,
-    max_value=120,
-    value=15,
-    step=5,
-    help="Higher values prevent Yahoo Finance from throttling your connection IP."
-)
-
 # Master visual layout placeholder
 st.title("📈 Nifty 50 Multi-Algo Monitor & Trade Signal")
 st.caption("⚠️ *Data source: Yahoo Finance (Subject to a 15-minute feed delay for NSE indices)*")
@@ -210,6 +196,7 @@ while True:
             with top_col2:
                 st.markdown("### 📊 Major Indian Indices Live")
                 indices_df = fetch_major_indices()
+                # FIXED: replaced use_container_width with new stretch configuration
                 st.dataframe(indices_df, width="stretch", hide_index=True)
             
             st.markdown("---")
@@ -294,5 +281,4 @@ while True:
         else:
             st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
             
-    # Polling cooldown utilizing the safe state rate limits configured in the sidebar
-    time.sleep(refresh_rate)
+    time.sleep(2)
