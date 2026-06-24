@@ -19,8 +19,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# FIXED: Disable show_spinner to prevent Python 3.14 thread spawning errors on Streamlit Cloud
-@st.cache_data(ttl=600, show_spinner=False)
+# OPTIMIZATION: Previous day close changes 0 times during live market. Cached for 30 mins to conserve request quota.
+@st.cache_data(ttl=1800, show_spinner=False)
 def get_yesterday_close(ticker_symbol="^NSEI"):
     """
     Retrieves the previous close price safely using historical daily points.
@@ -70,6 +70,8 @@ def fetch_nifty_data():
         }, index=timestamps)
         return sim_df
 
+# OPTIMIZATION: Cached for 60 seconds. Prevents 4 separate requests from launching on every quick-loop iteration.
+@st.cache_data(ttl=60, show_spinner=False)
 def fetch_major_indices():
     indices = {
         "Nifty 50": "^NSEI",
@@ -166,6 +168,17 @@ def build_algorithms_matrix(df):
     signals['11. Parabolic SAR'] = 1 if pd.isna(psar_down.iloc[-1]) else -1
     
     return signals
+
+# Configured sidebar controls to preserve API limits dynamically
+st.sidebar.header("⚙️ Workspace Controls")
+refresh_rate = st.sidebar.slider(
+    label="API Refresh Interval (Seconds)",
+    min_value=10,
+    max_value=120,
+    value=15,
+    step=5,
+    help="Higher values prevent Yahoo Finance from throttling your connection IP."
+)
 
 # Master visual layout placeholder
 st.title("📈 Nifty 50 Multi-Algo Monitor & Trade Signal")
@@ -281,4 +294,5 @@ while True:
         else:
             st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
             
-    time.sleep(0.5)
+    # Polling cooldown utilizing the safe state rate limits configured in the sidebar
+    time.sleep(refresh_rate)
