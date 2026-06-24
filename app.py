@@ -198,121 +198,122 @@ Keep **Auto-Refresh** turned **OFF** when not actively trading. Use the high-con
 st.title("📈 Nifty 50 Multi-Algo Monitor & Trade Signal")
 st.caption("⚠️ *Data source: Yahoo Finance (Subject to a 15-minute feed delay for NSE indices)*")
 
-# Execute single-run data lifecycle
-df = fetch_nifty_data()
-prev_day_close = get_yesterday_close("^NSEI")
+# ENGINES SECURITY RESTRUCTURE:
+# Utilizing Streamlit's Native `@st.fragment` callback to scheduler task pipelines to the client-side,
+# completely eliminating the use of 'while True:' or 'time.sleep' block constraints in operating memory.
+@st.fragment(run_every=refresh_rate if enable_auto_refresh else None)
+def render_dashboard_fragment():
+    # Execute single-run data lifecycle inside a thread-isolated view container
+    df = fetch_nifty_data()
+    prev_day_close = get_yesterday_close("^NSEI")
 
-# Lowered warm-up barrier requirement to 50 for robust, instant startups
-if not df.empty and len(df) >= 50 and prev_day_close:
-    current_price = df['Close'].iloc[-1]
-    total_day_change = current_price - prev_day_close
-    pct_day_change = (total_day_change / prev_day_close) * 100
-    
-    # Top Header Row (Left: Core Tracker, Right: Live Watchlist Box)
-    top_col1, top_col2 = st.columns([1.2, 1], gap="large")
-    
-    with top_col1:
-        st.subheader("Core Target Tracker")
-        st.metric(
-            label="NIFTY 50 Live Index", 
-            value=f"{current_price:.2f}", 
-            delta=f"{total_day_change:+.2f} ({pct_day_change:+.2f}%)"
-        )
-        # Added beautiful manual sync command (Clears local caches before re-triggering)
-        if st.button("🔄 Sync Live Feed", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+    # Lowered warm-up barrier requirement to 50 for robust, instant startups
+    if not df.empty and len(df) >= 50 and prev_day_close:
+        current_price = df['Close'].iloc[-1]
+        total_day_change = current_price - prev_day_close
+        pct_day_change = (total_day_change / prev_day_close) * 100
         
-    with top_col2:
-        st.markdown("### 📊 Major Indian Indices Live")
-        indices_df = fetch_major_indices()
-        st.dataframe(indices_df, width="stretch", hide_index=True)
-    
-    st.markdown("---")
-    
-    # Process algorithms & Consensus Verdict Output
-    algo_results = build_algorithms_matrix(df)
-    total_algos = len(algo_results)
-    
-    bullish_count = sum(1 for v in algo_results.values() if v == 1)
-    bearish_count = sum(1 for v in algo_results.values() if v == -1)
-    neutral_count = total_algos - bullish_count - bearish_count
-    
-    # Calculate precise mathematical consensus percentages
-    bullish_pct = (bullish_count / total_algos) * 100
-    bearish_pct = (bearish_count / total_algos) * 100
-    neutral_pct = (neutral_count / total_algos) * 100
-    
-    # Calculate normalized indicator bias
-    score = bullish_count - bearish_count
-    normalized = (score / total_algos) * 100
-    
-    if normalized >= 50: 
-        action_title = "💥 STRONG BUY"
-    elif 15 <= normalized < 50: 
-        action_title = "🟢 BUY (🟢 BULLISH)"
-    elif -15 < normalized < 15: 
-        action_title = "⏳ HOLD / WAIT"
-    elif -50 < normalized <= -15: 
-        action_title = "🔴 SELL (🔴 BEARISH)"
-    else: 
-        action_title = "🚨 STRONG SELL"
-    
-    # Clean side-by-side action layout
-    verdict_col1, verdict_col2 = st.columns(2)
-    with verdict_col1:
-        st.metric(label="CURRENT SYSTEM ACTION VERDICT", value=action_title)
-    with verdict_col2:
-        st.info(f"**Net Indicator Score:** {score:+} (Out of {total_algos} total engines managed)")
-    
-    # Real-Time Consensus Percentages Row
-    st.markdown("### 🚦 Consensus Percentages")
-    pct_col1, pct_col2, pct_col3 = st.columns(3)
-    
-    with pct_col1:
-        st.markdown(f"""
-            <div class="metric-card" style="border-top: 4px solid #10b981;">
-                <div class="metric-label">🟢 Bullish Consensus</div>
-                <div class="metric-value" style="color: #10b981;">{bullish_pct:.1f}%</div>
-                <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bullish_count} of {total_algos} Algos</div>
-            </div>
-        """, unsafe_allow_html=True)
-                
-    with pct_col2:
-        st.markdown(f"""
-            <div class="metric-card" style="border-top: 4px solid #64748b;">
-                <div class="metric-label">⚪ Neutral Consensus</div>
-                <div class="metric-value" style="color: #94a3b8;">{neutral_pct:.1f}%</div>
-                <div style="font-size: 11px; color: #475569; margin-top: 4px;">{neutral_count} of {total_algos} Algos</div>
-            </div>
-        """, unsafe_allow_html=True)
-                
-    with pct_col3:
-        st.markdown(f"""
-            <div class="metric-card" style="border-top: 4px solid #ef4444;">
-                <div class="metric-label">🔴 Bearish Consensus</div>
-                <div class="metric-value" style="color: #ef4444;">{bearish_pct:.1f}%</div>
-                <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bearish_count} of {total_algos} Algos</div>
-            </div>
-        """, unsafe_allow_html=True)
+        # Top Header Row (Left: Core Tracker, Right: Live Watchlist Box)
+        top_col1, top_col2 = st.columns([1.2, 1], gap="large")
+        
+        with top_col1:
+            st.subheader("Core Target Tracker")
+            st.metric(
+                label="NIFTY 50 Live Index", 
+                value=f"{current_price:.2f}", 
+                delta=f"{total_day_change:+.2f} ({pct_day_change:+.2f}%)"
+            )
+            # Added beautiful manual sync command (Clears local caches before re-triggering)
+            if st.button("🔄 Sync Live Feed", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
             
-    st.markdown("---")
-    st.markdown("### 🛠️ Individual Technical Engine Breakdowns")
-    
-    # Display signals table
-    report_data = []
-    for algo, sig in algo_results.items():
-        status = "🟢 BULLISH" if sig == 1 else ("🔴 BEARISH" if sig == -1 else "⚪ NEUTRAL")
-        report_data.append({"Algorithm Engine": algo, "Market Signal Direction": status})
-    
-    st.table(pd.DataFrame(report_data))
-            
-else:
-    st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
+        with top_col2:
+            st.markdown("### 📊 Major Indian Indices Live")
+            indices_df = fetch_major_indices()
+            st.dataframe(indices_df, width="stretch", hide_index=True)
+        
+        st.markdown("---")
+        
+        # Process algorithms & Consensus Verdict Output
+        algo_results = build_algorithms_matrix(df)
+        total_algos = len(algo_results)
+        
+        bullish_count = sum(1 for v in algo_results.values() if v == 1)
+        bearish_count = sum(1 for v in algo_results.values() if v == -1)
+        neutral_count = total_algos - bullish_count - bearish_count
+        
+        # Calculate precise mathematical consensus percentages
+        bullish_pct = (bullish_count / total_algos) * 100
+        bearish_pct = (bearish_count / total_algos) * 100
+        neutral_pct = (neutral_count / total_algos) * 100
+        
+        # Calculate normalized indicator bias
+        score = bullish_count - bearish_count
+        normalized = (score / total_algos) * 100
+        
+        if normalized >= 50: 
+            action_title = "💥 STRONG BUY"
+        elif 15 <= normalized < 50: 
+            action_title = "🟢 BUY (🟢 BULLISH)"
+        elif -15 < normalized < 15: 
+            action_title = "⏳ HOLD / WAIT"
+        elif -50 < normalized <= -15: 
+            action_title = "🔴 SELL (🔴 BEARISH)"
+        else: 
+            action_title = "🚨 STRONG SELL"
+        
+        # Clean side-by-side action layout
+        verdict_col1, verdict_col2 = st.columns(2)
+        with verdict_col1:
+            st.metric(label="CURRENT SYSTEM ACTION VERDICT", value=action_title)
+        with verdict_col2:
+            st.info(f"**Net Indicator Score:** {score:+} (Out of {total_algos} total engines managed)")
+        
+        # Real-Time Consensus Percentages Row
+        st.markdown("### 🚦 Consensus Percentages")
+        pct_col1, pct_col2, pct_col3 = st.columns(3)
+        
+        with pct_col1:
+            st.markdown(f"""
+                <div class="metric-card" style="border-top: 4px solid #10b981;">
+                    <div class="metric-label">🟢 Bullish Consensus</div>
+                    <div class="metric-value" style="color: #10b981;">{bullish_pct:.1f}%</div>
+                    <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bullish_count} of {total_algos} Algos</div>
+                </div>
+            """, unsafe_allow_html=True)
+                    
+        with pct_col2:
+            st.markdown(f"""
+                <div class="metric-card" style="border-top: 4px solid #64748b;">
+                    <div class="metric-label">⚪ Neutral Consensus</div>
+                    <div class="metric-value" style="color: #94a3b8;">{neutral_pct:.1f}%</div>
+                    <div style="font-size: 11px; color: #475569; margin-top: 4px;">{neutral_count} of {total_algos} Algos</div>
+                </div>
+            """, unsafe_allow_html=True)
+                    
+        with pct_col3:
+            st.markdown(f"""
+                <div class="metric-card" style="border-top: 4px solid #ef4444;">
+                    <div class="metric-label">🔴 Bearish Consensus</div>
+                    <div class="metric-value" style="color: #ef4444;">{bearish_pct:.1f}%</div>
+                    <div style="font-size: 11px; color: #475569; margin-top: 4px;">{bearish_count} of {total_algos} Algos</div>
+                </div>
+            """, unsafe_allow_html=True)
+                
+        st.markdown("---")
+        st.markdown("### 🛠️ Individual Technical Engine Breakdowns")
+        
+        # Display signals table
+        report_data = []
+        for algo, sig in algo_results.items():
+            status = "🟢 BULLISH" if sig == 1 else ("🔴 BEARISH" if sig == -1 else "⚪ NEUTRAL")
+            report_data.append({"Algorithm Engine": algo, "Market Signal Direction": status})
+        
+        st.table(pd.DataFrame(report_data))
+                
+    else:
+        st.warning("Fetching historical streams and building data matrix requirements (Requires 50+ periods to start)...")
 
-# SAFE COOPERATIVE SLEEP & RERUN LIFECYCLE
-if enable_auto_refresh:
-    # Split sleep time into 1-second ticks so the thread can be killed cooperatively by the OS
-    for _ in range(refresh_rate):
-        time.sleep(1)
-    st.rerun()
+# Trigger clean, frontend-bound fragment activation execution
+render_dashboard_fragment()
